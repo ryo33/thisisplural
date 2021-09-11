@@ -1,12 +1,12 @@
 [package]
 name = "thisisplural"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2018"
 license = "MIT OR Apache-2.0"
 description = "#[derive(Plural)] for creating frictionless new types with a Vec, HashMap, etc."
 homepage = "https://github.com/ryo33/thisisplural"
 repository = "https://github.com/ryo33/thisisplural"
-readme = "../README.md"
+readme = "README.md"
 keywords = ["derive", "collection", "Vec", "HashMap"]
 categories = ["rust-patterns"]
 
