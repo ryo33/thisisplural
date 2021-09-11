@@ -1,0 +1,3 @@
+[workspace]
+
+members = ["thisisplural", "thisisplural_derive"]
