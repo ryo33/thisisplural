@@ -41,7 +41,12 @@ mod tests {
     }
 
     #[test]
-    fn vec_extend() {
+    fn vec_deref() {
+        assert_eq!(VecTuple(vec![1, 2]).len(), 2);
+    }
+
+    #[test]
+    fn vec_deref_mut() {
         let mut extended = VecTuple(vec![1, 2]);
         extended.extend(VecTuple(vec![3]));
         assert_eq!(extended, VecTuple(vec![1, 2, 3]));
@@ -97,7 +102,15 @@ mod tests {
     }
 
     #[test]
-    fn hash_map_extend() {
+    fn hash_map_deref() {
+        assert_eq!(
+            HashMapTuple(HashMap::from_iter([(1, true), (2, false)])).len(),
+            2
+        );
+    }
+
+    #[test]
+    fn hash_map_deref_mut() {
         let mut extended = HashMapTuple(HashMap::from_iter([(1, true)]));
         extended.extend(HashMapTuple(HashMap::from_iter([(2, false)])));
         assert_eq!(
@@ -114,6 +127,9 @@ mod tests {
 
     #[test]
     fn hash_map_from() {
-        assert_eq!(HashMapTuple::from(HashMap::from([(1, true)])), HashMapTuple(HashMap::from([(1, true)])));
+        assert_eq!(
+            HashMapTuple::from(HashMap::from([(1, true)])),
+            HashMapTuple(HashMap::from([(1, true)]))
+        );
     }
 }

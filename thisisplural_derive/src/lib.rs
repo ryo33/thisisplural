@@ -57,7 +57,6 @@ fn vec(
     let deref_mut = deref_mut(&plural_ident, &accessor);
     let into_iter = into_iter(&plural_ident, &field, &item, &accessor);
     let from_iter = from_iter(&plural_ident, &item);
-    let extend = extend(&plural_ident, &item, &accessor);
     let iter_and_iter_mut =
         iter_and_iter_mut(&plural_ident, &accessor, quote![&#item], quote![&mut #item]);
     quote! {
@@ -88,7 +87,6 @@ fn hash_map(
     let deref_mut = deref_mut(&plural_ident, &accessor);
     let into_iter = into_iter(&plural_ident, &field, &item, &accessor);
     let from_iter = from_iter(&plural_ident, &item);
-    let extend = extend(&plural_ident, &item, &accessor);
     let iter_and_iter_mut = iter_and_iter_mut(
         &plural_ident,
         &accessor,
@@ -102,7 +100,6 @@ fn hash_map(
         #deref_mut
         #into_iter
         #from_iter
-        #extend
         #iter_and_iter_mut
     }
 }
@@ -129,16 +126,6 @@ fn from_iter(plural_ident: &Ident, item: &TokenStream) -> TokenStream {
         impl std::iter::FromIterator<#item> for #plural_ident {
             fn from_iter<T: IntoIterator<Item = #item>>(iter: T) -> Self {
                 Self(iter.into_iter().collect())
-            }
-        }
-    }
-}
-
-fn extend(plural_ident: &Ident, item: &TokenStream, accessor: &TokenStream) -> TokenStream {
-    quote! {
-        impl std::iter::Extend<#item> for #plural_ident {
-            fn extend<T: IntoIterator<Item = #item>>(&mut self, iter: T) {
-                self.#accessor.extend(iter);
             }
         }
     }
