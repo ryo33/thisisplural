@@ -33,7 +33,7 @@ let favorite_numbers = FavoriteNumbers::from_iter([("ryo33", my_favorite_numbers
 
 // use IntoIterator trait
 for (name, numbers) in favorite_numbers {
-		// use Deref trait
-		println!("{} has {} favorite number(s)", name, numbers.len());
+    // use Deref trait
+    println!("{} has {} favorite number(s)", name, numbers.len());
 }
 ```
