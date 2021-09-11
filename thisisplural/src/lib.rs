@@ -6,6 +6,31 @@ mod tests {
 
     use super::*;
 
+    #[test]
+    fn example() {
+        #[derive(Plural)]
+        struct Numbers(Vec<u32>);
+
+        // use From trait
+        let mut my_favorite_numbers: Numbers = vec![].into();
+
+        // use DerefMut trait.
+        my_favorite_numbers.push(42);
+
+        // HashMap is also supported
+        #[derive(Plural)]
+        struct FavoriteNumbers(HashMap<&'static str, Numbers>);
+
+        // use FromIterator trait
+        let favorite_numbers = FavoriteNumbers::from_iter([("ryo33", my_favorite_numbers)]);
+
+        // use IntoIterator trait
+        for (name, numbers) in favorite_numbers {
+            // use Deref trait
+            println!("{} has {} favorite number(s)", name, numbers.len());
+        }
+    }
+
     #[derive(Plural, Debug, PartialEq)]
     struct VecTuple(Vec<u8>);
 
@@ -69,7 +94,7 @@ mod tests {
     #[test]
     fn hash_map_into_iter() {
         assert_eq!(
-            IntoIterator::into_iter(HashMapTuple(HashMap::from_iter([(1, true), (2, false)])))
+            IntoIterator::into_iter(HashMapTuple::from_iter([(1, true), (2, false)]))
                 .collect::<HashMap<_, _>>(),
             HashMap::from_iter([(1, true), (2, false)])
         );
@@ -85,7 +110,7 @@ mod tests {
 
     #[test]
     fn hash_map_iter() {
-        let tuple = HashMapTuple(HashMap::from_iter([(1, true)]));
+        let tuple = HashMapTuple::from_iter([(1, true)]);
         let mut iter = tuple.iter();
         let a: Option<(&u8, &bool)> = iter.next();
         assert_eq!(a, Some((&1, &true)));
@@ -94,7 +119,7 @@ mod tests {
 
     #[test]
     fn hash_map_iter_mut() {
-        let mut tuple = HashMapTuple(HashMap::from_iter([(1, true)]));
+        let mut tuple = HashMapTuple::from_iter([(1, true)]);
         let mut iter = tuple.iter_mut();
         let a: Option<(&u8, &mut bool)> = iter.next();
         assert_eq!(a, Some((&1, &mut true)));
@@ -103,25 +128,19 @@ mod tests {
 
     #[test]
     fn hash_map_deref() {
-        assert_eq!(
-            HashMapTuple(HashMap::from_iter([(1, true), (2, false)])).len(),
-            2
-        );
+        assert_eq!(HashMapTuple::from_iter([(1, true), (2, false)]).len(), 2);
     }
 
     #[test]
     fn hash_map_deref_mut() {
-        let mut extended = HashMapTuple(HashMap::from_iter([(1, true)]));
-        extended.extend(HashMapTuple(HashMap::from_iter([(2, false)])));
-        assert_eq!(
-            extended,
-            HashMapTuple(HashMap::from_iter([(1, true), (2, false)]))
-        );
+        let mut extended = HashMapTuple::from_iter([(1, true)]);
+        extended.extend(HashMapTuple::from_iter([(2, false)]));
+        assert_eq!(extended, HashMapTuple::from_iter([(1, true), (2, false)]));
     }
 
     #[test]
     fn hash_map_into() {
-        let hash_map: HashMap<_, _> = HashMapTuple(HashMap::from_iter([(1, true)])).into();
+        let hash_map: HashMap<_, _> = HashMapTuple::from_iter([(1, true)]).into();
         assert_eq!(hash_map, HashMap::from_iter([(1, true)]));
     }
 
