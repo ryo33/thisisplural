@@ -5,7 +5,7 @@
 [![Crates.io](https://img.shields.io/crates/v/thisisplural)](https://crates.io/crates/thisisplural)
 [![docs.rs](https://img.shields.io/docsrs/thisisplural)](https://docs.rs/thisisplural)
 
-`#[derive(Plural)]` for creating frictionless new types with a Vec, HashMap, etc.
+`#[derive(Plural)]` for creating frictionless new types with a `Vec`, `HashMap`, etc.
 
 ## Features
 
