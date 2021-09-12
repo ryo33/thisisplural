@@ -83,6 +83,18 @@ fn vec_from() {
     assert_eq!(VecTuple::from(vec![1]), VecTuple(vec![1]));
 }
 
+#[test]
+fn supports_pub() {
+    #[derive(Plural, Debug, PartialEq)]
+    struct VecTuple(pub(crate) Vec<u8>);
+}
+
+#[test]
+fn vec_supports_trait_bound() {
+    #[derive(Plural, Debug, PartialEq)]
+    struct VecTuple<'a, T, const N: usize>(Vec<[&'a T; N]>);
+}
+
 #[derive(Plural, Debug, PartialEq)]
 struct HashMapTuple(std::collections::HashMap<u8, bool>);
 
@@ -145,4 +157,10 @@ fn hash_map_from() {
         HashMapTuple::from(HashMap::from([(1, true)])),
         HashMapTuple(HashMap::from([(1, true)]))
     );
+}
+
+#[test]
+fn hash_map_supports_trait_bounds() {
+    #[derive(Plural)]
+    struct VecTuple<K: Eq + std::hash::Hash, V>(HashMap<K, V>);
 }
