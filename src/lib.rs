@@ -48,8 +48,6 @@ pub fn derive_plural(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
     let field_type = quote![#field_type];
     let into = impl_trait(&plural_ident, &generics, into(&field_type, &field_ident));
     let from = impl_trait(&plural_ident, &generics, from(&field_type));
-    let deref = impl_trait(&plural_ident, &generics, deref(&field_type, &field_ident));
-    let deref_mut = impl_trait(&plural_ident, &generics, deref_mut(&field_ident));
     let into_iter = impl_trait(
         &plural_ident,
         &generics,
@@ -59,8 +57,6 @@ pub fn derive_plural(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
     proc_macro::TokenStream::from(quote! {
         #into
         #from
-        #deref
-        #deref_mut
         #into_iter
         #from_iter
     })
@@ -124,30 +120,6 @@ fn from(field: &TokenStream) -> (TokenStream, TokenStream) {
         quote! {
             fn from(field: #field) -> Self {
                 Self(field)
-            }
-        },
-    )
-}
-
-fn deref(field: &TokenStream, accessor: &TokenStream) -> (TokenStream, TokenStream) {
-    (
-        quote![std::ops::Deref],
-        quote! {
-            type Target = #field;
-
-            fn deref(&self) -> &#field {
-                &self.#accessor
-            }
-        },
-    )
-}
-
-fn deref_mut(accessor: &TokenStream) -> (TokenStream, TokenStream) {
-    (
-        quote![std::ops::DerefMut],
-        quote! {
-            fn deref_mut(&mut self) -> &mut Self::Target {
-                &mut self.#accessor
             }
         },
     )

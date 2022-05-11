@@ -9,7 +9,7 @@
 
 ## Features
 
-- Automatically implements `From`, `Into`, `FromIterator`, `IntoIterator`, `Deref`, and `DerefMut`.
+- Automatically implements `From`, `Into`, `FromIterator`, `IntoIterator`.
 - Supports `Vec` and `HashMap` (adding other collections to here is very easy).
 
 ## Example
@@ -20,13 +20,10 @@
 struct Numbers(Vec<u32>);
 
 // use `From` trait
-let mut my_favorite_numbers: Numbers = vec![].into();
-
-// use inner APIs with `DerefMut` trait.
-my_favorite_numbers.push(42);
+let my_favorite_numbers: Numbers = vec![].into();
 
 // `FromIterator` allows this `collect()`
-let doubled_numbers: Numbers = my_favorite_numbers.iter().map(|x| x * 2).collect();
+let doubled_numbers: Numbers = my_favorite_numbers.0.iter().map(|x| x * 2).collect();
 
 // `HashMap` is also supported
 #[derive(Plural)]
@@ -39,6 +36,6 @@ let favorite_numbers =
 // use it in a `for` loop (`IntoIterator` trait)
 for (name, numbers) in favorite_numbers {
     // use Deref trait
-    println!("{} has {} favorite number(s)", name, numbers.len());
+    println!("{} has {} favorite number(s)", name, numbers.0.len());
 }
 ```
