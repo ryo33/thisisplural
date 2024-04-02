@@ -56,6 +56,13 @@ fn vec_from() {
 }
 
 #[test]
+fn vec_extend() {
+    let mut src = VecTuple(vec![1, 2]);
+    src.extend(vec![2, 3]);
+    assert_eq!(src, VecTuple(vec![1, 2, 2, 3]));
+}
+
+#[test]
 fn supports_pub() {
     #[derive(Plural, Debug, PartialEq)]
     struct VecTuple(pub(crate) Vec<u8>);
@@ -104,4 +111,44 @@ fn hash_map_from() {
 fn hash_map_supports_trait_bounds() {
     #[derive(Plural)]
     struct VecTuple<K: Eq + std::hash::Hash, V>(HashMap<K, V>);
+}
+
+#[test]
+fn hash_map_extend() {
+    let mut src = HashMapTuple(HashMap::from([(1, true), (2, false)]));
+    src.extend([(2, true), (3, false)]);
+    assert_eq!(
+        src,
+        HashMapTuple(HashMap::from([
+            (1, true),
+            (2, false),
+            (2, true),
+            (3, false)
+        ]))
+    );
+}
+
+#[derive(Plural, Debug, PartialEq)]
+struct HashSetTuple(std::collections::HashSet<u8>);
+
+#[test]
+fn test_hash_set() {
+    assert_eq!(
+        IntoIterator::into_iter(HashSetTuple::from_iter([1, 2, 3]))
+            .collect::<std::collections::HashSet<_>>(),
+        std::collections::HashSet::from_iter([1, 2, 3])
+    );
+}
+
+type CustomHashMap<K, V> = std::collections::HashMap<K, V>;
+#[derive(Plural, Debug, PartialEq)]
+struct CustomHashMapTuple(CustomHashMap<u8, bool>);
+
+#[test]
+fn test_custom_hash_map() {
+    assert_eq!(
+        IntoIterator::into_iter(CustomHashMapTuple::from_iter([(1, true), (2, false)]))
+            .collect::<CustomHashMap<_, _>>(),
+        CustomHashMap::from_iter([(1, true), (2, false)])
+    );
 }

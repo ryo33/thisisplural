@@ -1,143 +1,230 @@
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
+use quote::{quote, quote_spanned, ToTokens};
 use syn::{
-    parse, ConstParam, Generics, Ident, ItemStruct, LifetimeDef, Path, PathArguments, PathSegment,
-    Type, TypeParam, TypePath,
+    parse, spanned::Spanned as _, ConstParam, Generics, Ident, ItemStruct, LifetimeParam, Path,
+    PathArguments, PathSegment, Type, TypeParam, TypePath,
 };
 
 #[proc_macro_derive(Plural)]
 pub fn derive_plural(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let item_struct: ItemStruct = parse(input).unwrap();
-    let generics = item_struct.generics;
-    let plural_ident = item_struct.ident;
-    let field = item_struct.fields.iter().next().expect("no field found");
-    let field_type = &field.ty;
-    let field_ident = field
-        .ident
-        .as_ref()
-        .map_or(quote![0], ToTokens::into_token_stream);
-    let item = if let Type::Path(TypePath {
+    let generics = &item_struct.generics;
+    let generics_without_bounds = generics
+        .params
+        .iter()
+        .map(|param| match param {
+            syn::GenericParam::Type(TypeParam { ident, .. }) => ident.to_token_stream(),
+            syn::GenericParam::Lifetime(LifetimeParam { lifetime, .. }) => {
+                lifetime.to_token_stream()
+            }
+            syn::GenericParam::Const(ConstParam { ident, .. }) => ident.to_token_stream(),
+        })
+        .collect::<Vec<_>>();
+    let ident = &item_struct.ident;
+    let Some((field, field_ident)) = item_struct.fields.iter().next().map(|field| {
+        (
+            field,
+            field
+                .ident
+                .as_ref()
+                .map_or(quote![0], ToTokens::into_token_stream),
+        )
+    }) else {
+        return quote_spanned!(item_struct.span() => compile_error!("expected a field")).into();
+    };
+    let Type::Path(TypePath {
         path: Path { segments, .. },
         ..
-    }) = &field_type
-    {
-        // last() for ignore paths such as "std::collections::"
-        let segment = segments.iter().cloned().last().unwrap();
-        if let PathSegment {
-            ident,
-            arguments: PathArguments::AngleBracketed(arguments),
-        } = segment
-        {
-            let arguments = arguments
-                .args
-                .iter()
-                .map(ToTokens::to_token_stream)
-                .collect();
-            match ident.to_string().as_str() {
-                "Vec" => vec_item(arguments),
-                "HashMap" => hash_map_item(arguments),
-                collection => panic!("{} is not supported yet", collection),
-            }
-        } else {
-            panic!("not collection type is found");
-        }
+    }) = &field.ty
+    else {
+        return quote_spanned!(field.ty.span() => compile_error!("expected a collection")).into();
+    };
+    // last() for ignore paths such as "std::collections::"
+    let segment = segments.iter().last().unwrap();
+    let PathSegment {
+        ident: _collection_name,
+        arguments: PathArguments::AngleBracketed(arguments),
+    } = segment
+    else {
+        return quote_spanned!(segment.span() => compile_error!("expected a collection")).into();
+    };
+    if arguments.args.is_empty() {
+        return quote_spanned!(segment.span() => compile_error!("failed to get the item type for this collection")).into();
+    }
+    let item_type = if arguments.args.len() >= 2 {
+        let key = &arguments.args[0];
+        let value = &arguments.args[1];
+        quote! { (#key, #value) }
     } else {
-        panic!("the first field should be a collection");
+        let item = &arguments.args[0];
+        quote! { #item }
     };
 
-    let field_type = quote![#field_type];
-    let into = impl_trait(&plural_ident, &generics, into(&field_type, &field_ident));
-    let from = impl_trait(&plural_ident, &generics, from(&field_type));
-    let into_iter = impl_trait(
-        &plural_ident,
-        &generics,
-        into_iter(&field_type, &item, &field_ident),
-    );
-    let from_iter = impl_trait(&plural_ident, &generics, from_iter(&item));
+    let plural = Plural {
+        ident,
+        generics,
+        generics_without_bounds,
+        field_ident,
+        collection: &field.ty,
+        item_type,
+    };
+
+    let into = plural.impl_trait(plural.into_());
+    let from = plural.impl_trait(plural.from());
+    let into_iter = plural.impl_trait(plural.into_iter());
+    let from_iter = plural.impl_trait(plural.from_iter());
+    let extend = plural.impl_trait(plural.extend());
+    let delegate = plural.delegate(plural.methods());
+
     proc_macro::TokenStream::from(quote! {
         #into
         #from
         #into_iter
         #from_iter
+        #extend
     })
 }
 
-fn vec_item(mut arguments: Vec<TokenStream>) -> TokenStream {
-    assert!(arguments.len() == 1);
-    arguments.pop().unwrap()
+struct Plural<'a> {
+    ident: &'a Ident,
+    generics: &'a Generics,
+    generics_without_bounds: Vec<TokenStream>,
+    collection: &'a syn::Type,
+    field_ident: TokenStream,
+    item_type: TokenStream,
 }
 
-fn hash_map_item(arguments: Vec<TokenStream>) -> TokenStream {
-    assert!(arguments.len() == 2);
-    let key = &arguments[0];
-    let value = &arguments[1];
-    quote![(#key, #value)]
-}
+impl Plural<'_> {
+    fn into_iter(&self) -> (TokenStream, TokenStream) {
+        let Plural {
+            field_ident,
+            collection,
+            item_type,
+            ..
+        } = self;
+        (
+            quote![IntoIterator],
+            quote! {
+                type Item = #item_type;
+                type IntoIter = <#collection as IntoIterator>::IntoIter;
+                fn into_iter(self) -> Self::IntoIter {
+                    self.#field_ident.into_iter()
+                }
+            },
+        )
+    }
 
-fn into_iter(
-    field: &TokenStream,
-    item: &TokenStream,
-    accessor: &TokenStream,
-) -> (TokenStream, TokenStream) {
-    (
-        quote![IntoIterator],
+    fn from_iter(&self) -> (TokenStream, TokenStream) {
+        let Plural { item_type, .. } = self;
+        (
+            quote![
+        std::iter::FromIterator<#item_type>],
+            quote! {
+                fn from_iter<I: IntoIterator<Item = #item_type>>(iter: I) -> Self {
+                    Self(iter.into_iter().collect())
+                }
+            },
+        )
+    }
+
+    fn into_(&self) -> (TokenStream, TokenStream) {
+        let Plural {
+            field_ident,
+            collection,
+            ..
+        } = self;
+        (
+            quote![Into<#collection>],
+            quote! {
+                fn into(self) -> #collection {
+                    self.#field_ident
+                }
+            },
+        )
+    }
+
+    fn from(&self) -> (TokenStream, TokenStream) {
+        let Plural { collection, .. } = self;
+        (
+            quote![From<#collection>],
+            quote! {
+                fn from(field: #collection) -> Self {
+                    Self(field)
+                }
+            },
+        )
+    }
+
+    fn extend(&self) -> (TokenStream, TokenStream) {
+        let Plural {
+            field_ident,
+            item_type,
+            ..
+        } = self;
+        (
+            quote![std::iter::Extend<#item_type>],
+            quote! {
+                fn extend<I: IntoIterator<Item = #item_type>>(&mut self, iter: I) {
+                    self.#field_ident.extend(iter)
+                }
+            },
+        )
+    }
+
+    fn impl_trait(&self, (trait_, content): (TokenStream, TokenStream)) -> TokenStream {
+        let Plural {
+            ident,
+            generics,
+            generics_without_bounds,
+            ..
+        } = self;
         quote! {
-            type Item = #item;
-            type IntoIter = <#field as IntoIterator>::IntoIter;
-            fn into_iter(self) -> Self::IntoIter {
-                self.#accessor.into_iter()
+            impl #generics #trait_ for #ident<#(#generics_without_bounds,)*> {
+                #content
             }
-        },
-    )
-}
+        }
+    }
 
-fn from_iter(item: &TokenStream) -> (TokenStream, TokenStream) {
-    (
-        quote![
-        std::iter::FromIterator<#item>],
+    fn methods(&self) -> TokenStream {
+        let Plural {
+            field_ident,
+            item_type,
+            ..
+        } = self;
         quote! {
-            fn from_iter<I: IntoIterator<Item = #item>>(iter: I) -> Self {
-                Self(iter.into_iter().collect())
+            /// Returns the number of elements in the collection.
+            pub fn len(&self) -> usize {
+                self.#field_ident.len()
             }
-        },
-    )
-}
 
-fn into(field: &TokenStream, accessor: &TokenStream) -> (TokenStream, TokenStream) {
-    (
-        quote![Into<#field>],
+            /// Returns `true` if the collection contains no elements.
+            pub fn is_empty(&self) -> bool {
+                self.#field_ident.is_empty()
+            }
+
+            /// Iterates over the collection.
+            pub fn iter(&self) -> impl Iterator<Item = &#item_type> {
+                self.#field_ident.iter()
+            }
+
+            /// Iterates over the collection mutably.
+            pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut #item_type> {
+                self.#field_ident.iter_mut()
+            }
+        }
+    }
+
+    fn delegate(&self, content: TokenStream) -> TokenStream {
+        let Plural {
+            ident,
+            generics,
+            generics_without_bounds,
+            ..
+        } = self;
         quote! {
-            fn into(self) -> #field {
-                self.#accessor
+            impl #generics #ident<#(#generics_without_bounds,)*> {
+                #content
             }
-        },
-    )
-}
-
-fn from(field: &TokenStream) -> (TokenStream, TokenStream) {
-    (
-        quote![From<#field>],
-        quote! {
-            fn from(field: #field) -> Self {
-                Self(field)
-            }
-        },
-    )
-}
-
-fn impl_trait(
-    plural_ident: &Ident,
-    generics: &Generics,
-    (trait_, content): (TokenStream, TokenStream),
-) -> TokenStream {
-    let generics_without_bounds = generics.params.iter().map(|param| match param {
-        syn::GenericParam::Type(TypeParam { ident, .. }) => ident.to_token_stream(),
-        syn::GenericParam::Lifetime(LifetimeDef { lifetime, .. }) => lifetime.to_token_stream(),
-        syn::GenericParam::Const(ConstParam { ident, .. }) => ident.to_token_stream(),
-    });
-    quote! {
-        impl#generics #trait_ for #plural_ident<#(#generics_without_bounds,)*> {
-            #content
         }
     }
 }
