@@ -1,13 +1,13 @@
 [package]
 name = "thisisplural"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
-description = "#[derive(Plural)] for creating frictionless new types with a Vec, HashMap, etc."
+description = "#[derive(Plural)] for creating frictionless new types with any collection type like Vec or HashMap"
 homepage = "https://github.com/ryo33/thisisplural"
 repository = "https://github.com/ryo33/thisisplural"
 readme = "README.md"
-keywords = ["derive", "collection", "Vec", "HashMap"]
+keywords = ["derive", "collection", "Vec", "HashMap", "newtype"]
 categories = ["rust-patterns"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

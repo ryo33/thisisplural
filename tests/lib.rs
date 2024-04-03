@@ -152,3 +152,23 @@ fn test_custom_hash_map() {
         CustomHashMap::from_iter([(1, true), (2, false)])
     );
 }
+
+#[test]
+fn methods() {
+    let mut src = VecTuple(vec![1, 2]);
+    assert_eq!(src.len(), 2);
+    assert!(!src.is_empty());
+    let _: &u8 = src.iter().next().unwrap();
+    src.0.clear();
+    assert_eq!(src.len(), 0);
+    assert!(src.capacity() >= 2);
+    src.reserve(4);
+    assert!(src.capacity() >= 4);
+    assert!(VecTuple::with_capacity(4).capacity() >= 4);
+}
+
+#[test]
+fn into_iter_ref() {
+    let src = VecTuple(vec![1, 2]);
+    let _: &u8 = (&src).into_iter().next().unwrap();
+}

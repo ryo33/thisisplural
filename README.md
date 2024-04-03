@@ -5,27 +5,33 @@
 [![Crates.io](https://img.shields.io/crates/v/thisisplural)](https://crates.io/crates/thisisplural)
 [![docs.rs](https://img.shields.io/docsrs/thisisplural)](https://docs.rs/thisisplural)
 
-`#[derive(Plural)]` for creating frictionless new types with a `Vec`, `HashMap`, etc.
+`#[derive(Plural)]` for creating frictionless new types with any collection
+type.
 
 ## Features
 
-- Automatically implements `From`, `Into`, `FromIterator`, `IntoIterator`.
-- Supports `Vec` and `HashMap` (adding other collections to here is very easy).
+- Automatically implements `From`, `Into`, `FromIterator`, `IntoIterator`, and
+  methods like `.len()` or `::with_capacity`.
+- Supports any collection that behave like `Vec` and `HashMap`.
 
 ## Example
 
 ```rust
-// This implements `From`, `Into`, `FromIterator`, `IntoIterator`, `Deref`, and `DerefMut`.
+// This implements `From`, `Into`, `FromIterator`, `IntoIterator`.
 #[derive(Plural)]
 struct Numbers(Vec<u32>);
 
 // use `From` trait
 let my_favorite_numbers: Numbers = vec![].into();
 
-// `FromIterator` allows this `collect()`
-let doubled_numbers: Numbers = my_favorite_numbers.0.iter().map(|x| x * 2).collect();
+// methods like `len()` are implemented
+assert_eq!(my_favorite_numbers.len(), 0);
+assert!(my_favorite_numbers.is_empty());
 
-// `HashMap` is also supported
+// `FromIterator` allows this `collect()`
+let doubled_numbers: Numbers = my_favorite_numbers.iter().map(|x| x * 2).collect();
+
+// `HashMap` like collections are also supported
 #[derive(Plural)]
 struct FavoriteNumbers(HashMap<&'static str, Numbers>);
 

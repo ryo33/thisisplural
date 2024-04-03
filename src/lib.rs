@@ -1,8 +1,8 @@
 use proc_macro2::TokenStream;
 use quote::{quote, quote_spanned, ToTokens};
 use syn::{
-    parse, spanned::Spanned as _, ConstParam, Generics, Ident, ItemStruct, LifetimeParam, Path,
-    PathArguments, PathSegment, Type, TypeParam, TypePath,
+    parse, parse_quote, spanned::Spanned as _, ConstParam, GenericArgument, GenericParam, Generics,
+    Ident, ItemStruct, LifetimeParam, Path, PathArguments, PathSegment, Type, TypeParam, TypePath,
 };
 
 #[proc_macro_derive(Plural)]
@@ -51,13 +51,13 @@ pub fn derive_plural(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
     if arguments.args.is_empty() {
         return quote_spanned!(segment.span() => compile_error!("failed to get the item type for this collection")).into();
     }
-    let item_type = if arguments.args.len() >= 2 {
+    let item = if arguments.args.len() >= 2 {
         let key = &arguments.args[0];
         let value = &arguments.args[1];
-        quote! { (#key, #value) }
+        Item::KeyValue { key, value }
     } else {
         let item = &arguments.args[0];
-        quote! { #item }
+        Item::Value(item)
     };
 
     let plural = Plural {
@@ -66,12 +66,13 @@ pub fn derive_plural(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         generics_without_bounds,
         field_ident,
         collection: &field.ty,
-        item_type,
+        item,
     };
 
     let into = plural.impl_trait(plural.into_());
     let from = plural.impl_trait(plural.from());
     let into_iter = plural.impl_trait(plural.into_iter());
+    let into_iter_ref = plural.into_iter_ref();
     let from_iter = plural.impl_trait(plural.from_iter());
     let extend = plural.impl_trait(plural.extend());
     let delegate = plural.delegate(plural.methods());
@@ -80,9 +81,38 @@ pub fn derive_plural(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         #into
         #from
         #into_iter
+        #into_iter_ref
         #from_iter
         #extend
+        #delegate
     })
+}
+
+enum Item<'a> {
+    KeyValue {
+        key: &'a GenericArgument,
+        value: &'a GenericArgument,
+    },
+    Value(&'a GenericArgument),
+}
+
+impl Item<'_> {
+    pub fn reference(&self, lifetime: impl ToTokens) -> TokenStream {
+        match self {
+            Item::KeyValue { key, value } => quote![(& #lifetime #key, & #lifetime #value)],
+            Item::Value(item) => quote![& #lifetime #item],
+        }
+    }
+}
+
+impl ToTokens for Item<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let item = match self {
+            Item::KeyValue { key, value } => quote![(#key, #value)],
+            Item::Value(item) => quote![#item],
+        };
+        tokens.extend(item);
+    }
 }
 
 struct Plural<'a> {
@@ -91,7 +121,7 @@ struct Plural<'a> {
     generics_without_bounds: Vec<TokenStream>,
     collection: &'a syn::Type,
     field_ident: TokenStream,
-    item_type: TokenStream,
+    item: Item<'a>,
 }
 
 impl Plural<'_> {
@@ -99,7 +129,7 @@ impl Plural<'_> {
         let Plural {
             field_ident,
             collection,
-            item_type,
+            item: item_type,
             ..
         } = self;
         (
@@ -114,8 +144,36 @@ impl Plural<'_> {
         )
     }
 
+    fn into_iter_ref(&self) -> TokenStream {
+        let Plural {
+            ident,
+            field_ident,
+            collection,
+            item,
+            generics,
+            generics_without_bounds,
+            ..
+        } = self;
+        let lifetime: GenericParam = parse_quote!('plural);
+        let mut generics = (*generics).to_owned();
+        generics.params.insert(0, lifetime.clone());
+        let item_type = item.reference(&lifetime);
+        quote! {
+            impl #generics IntoIterator for & #lifetime #ident<#(#generics_without_bounds,)*> {
+                type Item = #item_type;
+                type IntoIter = <& #lifetime #collection as IntoIterator>::IntoIter;
+
+                fn into_iter(self) -> Self::IntoIter {
+                    self.#field_ident.iter()
+                }
+            }
+        }
+    }
+
     fn from_iter(&self) -> (TokenStream, TokenStream) {
-        let Plural { item_type, .. } = self;
+        let Plural {
+            item: item_type, ..
+        } = self;
         (
             quote![
         std::iter::FromIterator<#item_type>],
@@ -158,7 +216,7 @@ impl Plural<'_> {
     fn extend(&self) -> (TokenStream, TokenStream) {
         let Plural {
             field_ident,
-            item_type,
+            item: item_type,
             ..
         } = self;
         (
@@ -188,9 +246,11 @@ impl Plural<'_> {
     fn methods(&self) -> TokenStream {
         let Plural {
             field_ident,
-            item_type,
+            item,
+            collection,
             ..
         } = self;
+        let reference = item.reference(quote! {});
         quote! {
             /// Returns the number of elements in the collection.
             pub fn len(&self) -> usize {
@@ -203,13 +263,23 @@ impl Plural<'_> {
             }
 
             /// Iterates over the collection.
-            pub fn iter(&self) -> impl Iterator<Item = &#item_type> {
+            pub fn iter(&self) -> impl Iterator<Item = #reference> {
                 self.#field_ident.iter()
             }
 
-            /// Iterates over the collection mutably.
-            pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut #item_type> {
-                self.#field_ident.iter_mut()
+            /// Returns the capacity of the collection.
+            pub fn capacity(&self) -> usize {
+                self.#field_ident.capacity()
+            }
+
+            /// Reserves capacity for at least `additional` more elements to be inserted in the collection.
+            pub fn reserve(&mut self, additional: usize) {
+                self.#field_ident.reserve(additional)
+            }
+
+            /// Construct a new empty collection with the specified capacity.
+            pub fn with_capacity(capacity: usize) -> Self {
+                Self { #field_ident : <#collection>::with_capacity(capacity) }
             }
         }
     }
