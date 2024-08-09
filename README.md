@@ -12,7 +12,7 @@ type.
 
 - Automatically implements `From`, `Into`, `FromIterator`, `IntoIterator`, and
   methods like `.len()` or `::with_capacity`.
-- Supports any collection that behave like `Vec` and `HashMap`.
+- Supports any collection that behaves like `Vec` and `HashMap`.
 
 ## Example
 
