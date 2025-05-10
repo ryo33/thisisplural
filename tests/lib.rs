@@ -172,3 +172,6 @@ fn into_iter_ref() {
     let src = VecTuple(vec![1, 2]);
     let _: &u8 = (&src).into_iter().next().unwrap();
 }
+
+#[derive(Plural, Debug, PartialEq)]
+struct BTreeMapTuple(std::collections::BTreeMap<u8, bool>);

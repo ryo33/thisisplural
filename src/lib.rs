@@ -265,21 +265,6 @@ impl Plural<'_> {
             pub fn iter(&self) -> impl Iterator<Item = #reference> {
                 self.#field_ident.iter()
             }
-
-            /// Returns the capacity of the collection.
-            pub fn capacity(&self) -> usize {
-                self.#field_ident.capacity()
-            }
-
-            /// Reserves capacity for at least `additional` more elements to be inserted in the collection.
-            pub fn reserve(&mut self, additional: usize) {
-                self.#field_ident.reserve(additional)
-            }
-
-            /// Construct a new empty collection with the specified capacity.
-            pub fn with_capacity(capacity: usize) -> Self {
-                Self { #field_ident : <#collection>::with_capacity(capacity) }
-            }
         }
     }
 
