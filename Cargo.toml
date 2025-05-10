@@ -13,7 +13,7 @@ categories = ["rust-patterns"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
-proc_macro = true
+proc-macro = true
 
 [dependencies]
 proc-macro2 = "1.0"

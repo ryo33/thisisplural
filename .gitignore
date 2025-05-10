@@ -1,2 +1,11 @@
+*
+!*/
+!.gitignore
+
 /target
 Cargo.lock
+
+!Cargo.toml
+!src/**/.rs
+
+!README.md

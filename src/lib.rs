@@ -40,7 +40,7 @@ pub fn derive_plural(input: proc_macro::TokenStream) -> proc_macro::TokenStream 
         return quote_spanned!(field.ty.span() => compile_error!("expected a collection")).into();
     };
     // last() for ignore paths such as "std::collections::"
-    let segment = segments.iter().last().unwrap();
+    let segment = segments.iter().next_back().unwrap();
     let PathSegment {
         ident: _collection_name,
         arguments: PathArguments::AngleBracketed(arguments),
@@ -175,8 +175,7 @@ impl Plural<'_> {
             item: item_type, ..
         } = self;
         (
-            quote![
-        std::iter::FromIterator<#item_type>],
+            quote![core::iter::FromIterator<#item_type>],
             quote! {
                 fn from_iter<I: IntoIterator<Item = #item_type>>(iter: I) -> Self {
                     Self(iter.into_iter().collect())
@@ -220,7 +219,7 @@ impl Plural<'_> {
             ..
         } = self;
         (
-            quote![std::iter::Extend<#item_type>],
+            quote![core::iter::Extend<#item_type>],
             quote! {
                 fn extend<I: IntoIterator<Item = #item_type>>(&mut self, iter: I) {
                     self.#field_ident.extend(iter)
