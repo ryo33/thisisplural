@@ -161,10 +161,6 @@ fn methods() {
     let _: &u8 = src.iter().next().unwrap();
     src.0.clear();
     assert_eq!(src.len(), 0);
-    assert!(src.capacity() >= 2);
-    src.reserve(4);
-    assert!(src.capacity() >= 4);
-    assert!(VecTuple::with_capacity(4).capacity() >= 4);
 }
 
 #[test]

@@ -244,10 +244,7 @@ impl Plural<'_> {
 
     fn methods(&self) -> TokenStream {
         let Plural {
-            field_ident,
-            item,
-            collection,
-            ..
+            field_ident, item, ..
         } = self;
         let reference = item.reference(quote! {});
         quote! {
