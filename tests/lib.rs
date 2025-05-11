@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use std::{collections::HashMap, iter::FromIterator};
 use thisisplural::Plural;
 
@@ -23,8 +24,47 @@ fn example() {
 
     // use it in a `for` loop (`IntoIterator` trait)
     for (name, numbers) in favorite_numbers {
-        // use Deref trait
-        println!("{} has {} favorite number(s)", name, numbers.0.len());
+        println!("{} has {} favorite number(s)", name, numbers.len());
+    }
+}
+
+#[test]
+fn example_with_custom_methods() {
+    // It implements the methods specified in `#[plural(...)]`.
+    #[derive(Plural)]
+    #[plural(
+        len,
+        is_empty,
+        iter,
+        new,
+        clear,
+        into_iter,
+        into_iter_ref,
+        from_iter,
+        from_inner,
+        from_plural,
+        extend
+    )]
+    struct Numbers(Vec<u32>);
+
+    // use `From` trait
+    let my_favorite_numbers: Numbers = vec![].into();
+
+    // `FromIterator` allows this `collect()`
+    let doubled_numbers: Numbers = my_favorite_numbers.0.iter().map(|x| x * 2).collect();
+
+    // `HashMap` is also supported
+    #[derive(Plural)]
+    struct FavoriteNumbers(HashMap<&'static str, Numbers>);
+
+    // construct the struct with using `FromIterator`
+    let favorite_numbers =
+        FavoriteNumbers::from_iter([("ryo33", my_favorite_numbers), ("someone", doubled_numbers)]);
+
+    // use it in a `for` loop (`IntoIterator` trait)
+    for (name, numbers) in favorite_numbers {
+        // access the inner Vec directly
+        println!("{} has {} favorite number(s)", name, numbers.len());
     }
 }
 
@@ -161,6 +201,10 @@ fn methods() {
     let _: &u8 = src.iter().next().unwrap();
     src.0.clear();
     assert_eq!(src.len(), 0);
+    assert!(src.capacity() >= 2);
+    src.reserve(4);
+    assert!(src.capacity() >= 4);
+    assert!(VecTuple::with_capacity(4).capacity() >= 4);
 }
 
 #[test]
@@ -170,4 +214,5 @@ fn into_iter_ref() {
 }
 
 #[derive(Plural, Debug, PartialEq)]
+#[plural(len, is_empty, iter, new, clear)]
 struct BTreeMapTuple(std::collections::BTreeMap<u8, bool>);
